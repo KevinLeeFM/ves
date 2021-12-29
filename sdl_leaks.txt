@@ -1,0 +1,13 @@
+==38656== HEAP SUMMARY:
+==38656==     in use at exit: 332,217 bytes in 3,195 blocks
+==38656==   total heap usage: 104,819 allocs, 101,624 frees, 35,706,155 bytes allocated
+==38656== 
+^C==38656== LEAK SUMMARY:
+==38656==    definitely lost: 1,560 bytes in 22 blocks
+==38656==    indirectly lost: 1,885 bytes in 12 blocks
+==38656==      possibly lost: 0 bytes in 0 blocks
+==38656==    still reachable: 327,072 bytes in 3,160 blocks
+==38656==         suppressed: 1,700 bytes in 1 blocks
+==38656== Rerun with --leak-check=full to see details of leaked memory
+==38656== 
+==38656== For lists of detected and suppressed errors, rerun with: -s
