@@ -5,6 +5,8 @@
 #include <string.h>
 #include <assert.h>
 
+#include <sys/time.h>
+
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
@@ -35,6 +37,7 @@ typedef struct Screen {
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_Surface *surface;
+    struct timeval tv_draw;
 } Screen;
 
 Screen* screen_init() {
@@ -226,16 +229,25 @@ int main(int argc, char** argv) {
 
     // main application loop
     SDL_Event event;
+    struct timeval tv_draw_current;
+    unsigned int delta_draw;
+    memset(&tv_draw_current, 0, sizeof(struct timeval));
+
     while (1) {
         SDL_PollEvent(&event);
         if (event.type == SDL_QUIT) {
             break;
         }
 
-        // evaluate draw function
+        gettimeofday(&tv_draw_current, NULL);
+        delta_draw = (tv_draw_current.tv_sec - screen->tv_draw.tv_sec) * 1000 + (tv_draw_current.tv_usec - screen->tv_draw.tv_usec) / 1000;
+        screen->tv_draw = tv_draw_current;
+
+        // evaluate draw function: _screen_draw(delta)
         lua_getglobal(L, "_screen_draw");
         if (lua_isfunction(L, -1)) {
-            if (lua_pcall(L, 0, 1, 0) == LUA_OK) {
+            lua_pushinteger(L, delta_draw);
+            if (lua_pcall(L, 1, 0, 0) == LUA_OK) {
                 lua_pop(L, lua_gettop(L));
             }
         }

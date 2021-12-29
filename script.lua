@@ -16,7 +16,7 @@ print(table.b)
 
 Screen.testme(5)
 
-function _screen_draw()
-
+function _screen_draw(delta)
+    print(delta)
 end
 -- End
