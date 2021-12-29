@@ -59,9 +59,15 @@ Screen* screen_init() {
     screen->colors[0].r = 0x00;
     screen->colors[0].g = 0x00;
     screen->colors[0].b = 0x00;
-    screen->colors[1].r = 0x00;
-    screen->colors[1].g = 0xFF;
+    screen->colors[1].r = 0xFF;
+    screen->colors[1].g = 0x00;
     screen->colors[1].b = 0x00;
+    screen->colors[2].r = 0x00;
+    screen->colors[2].g = 0xFF;
+    screen->colors[2].b = 0x00;
+    screen->colors[3].r = 0x00;
+    screen->colors[3].g = 0x00;
+    screen->colors[3].b = 0xFF;
 
     return screen;
 }
@@ -74,12 +80,64 @@ void screen_free(Screen* screen) {
     }
 }
 
-// return 0 on success, 1 on failure
-int screen_fill_scanline(Screen* screen, unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2, unsigned int color) {
+// Return 0 on success, 1 on failure.
+// The pixel (x2, y2) is inclusive.
+int screen_fill_scanline(Screen* screen, unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2, Uint8 color) {
     // TODO: surround this assert in debug
     assert(color < 16 && x1 < SCREEN_WIDTH && x2 < SCREEN_WIDTH && y1 < SCREEN_HEIGHT && y2 < SCREEN_HEIGHT);
+
+    int coord_start = (x1 + y1 * SCREEN_WIDTH);
+    int coord_end = (x2 + y2 * SCREEN_WIDTH);
+
+    if (coord_start > coord_end) {
+        int temp = coord_start;
+        coord_start = coord_end;
+        coord_end = temp;
+    }
+
+    // printf("AAAA: %u, %u\n", coord_start, coord_end);
+
+    if (coord_start % 2) { // if odd
+        screen->pixels[coord_start / 2] = (screen->pixels[coord_start / 2] & 0x0F) | (color << 4);
+        coord_start += 1;
+    }
+
+    if (!(coord_end % 2)) { // if even
+        screen->pixels[coord_end / 2] = (screen->pixels[coord_end / 2] & 0xF0) | (color);
+        coord_end -= 1;
+    }
+
+    if (coord_start <= coord_end) {
+        memset(screen->pixels + (coord_start / 2), color | (color << 4), ((coord_end - coord_start) / 2) + 1);
+    }
+
+    // printf("(pixel at %u, %u): %x\n", x1, y1, screen->pixels[(x1 + y1 * SCREEN_WIDTH)/ 2]);
+    // printf("(pixel at %u, %u): %x\n", x2, y2, screen->pixels[(x2 + y2 * SCREEN_WIDTH)/ 2]);
+
     return 0;
 }
+
+int screen_pset(Screen* screen, unsigned int x, unsigned int y, Uint8 color) {
+    // TODO: surround this assert in debug
+    assert(color < 16 && x < SCREEN_WIDTH && y < SCREEN_HEIGHT);
+    const int coord = (x + y * SCREEN_WIDTH);
+    const Uint8 pixel = screen->pixels[coord / 2];
+    screen->pixels[coord / 2] = coord % 2 ? ((pixel & 0x0F) | (color << 4)) : ((pixel & 0xF0) | (color));
+
+    return 0;
+}
+
+// (x2, y2) is inclusive
+int screen_fill_rect(Screen* screen, unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2, Uint8 color) {
+    assert(color < 16 && x1 < SCREEN_WIDTH && x2 < SCREEN_WIDTH && y1 < SCREEN_HEIGHT && y2 < SCREEN_HEIGHT);
+
+    for (int y = y1; y <= y2; y++) {
+        screen_fill_scanline(screen, x1, y, x2, y, color);
+    }
+
+    return 0;
+}
+
 
 void screen_blit(Screen* screen) {
     Uint8 byte;
@@ -158,6 +216,13 @@ int main(int argc, char** argv) {
     }
 
     screen->pixels[2] = 0x10;
+    screen_fill_scanline(screen, 0, 0, 12, 37, 2);
+    screen_fill_rect(screen, 57, 57, 110, 110, 3);
+    screen_pset(screen, 5, 8, 1);
+    screen_pset(screen, 4, 9, 1);
+    screen_pset(screen, 5, 9, 1);
+    screen_pset(screen, 6, 9, 1);
+    screen_pset(screen, 5, 10, 1);
 
     // main application loop
     SDL_Event event;
