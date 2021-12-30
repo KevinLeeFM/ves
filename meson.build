@@ -7,6 +7,6 @@ sdl2_dep = dependency('sdl2')
 lua_dep = dependency('lua-5.4')
 
 executable(
-    'thundervm', 'thundervm.c',
+    'vesemu', 'vesemu.c',
     dependencies: [sdl2_dep, lua_dep]
 )

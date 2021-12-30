@@ -40,6 +40,9 @@ typedef struct Screen {
     struct timeval tv_draw;
 } Screen;
 
+// this could perhaps be more elegant, but for now all the devices are just going to be defined globally and monolithically
+Screen* screen;
+
 Screen* screen_init() {
     // initialize SDL video if it isn't already initialized
     if (SDL_WasInit(SDL_INIT_VIDEO) == 0) {
@@ -131,7 +134,7 @@ int screen_pset(Screen* screen, unsigned int x, unsigned int y, Uint8 color) {
 }
 
 // (x2, y2) is inclusive
-int screen_fill_rect(Screen* screen, unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2, Uint8 color) {
+int screen_rectfill(Screen* screen, unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2, Uint8 color) {
     assert(color < 16 && x1 < SCREEN_WIDTH && x2 < SCREEN_WIDTH && y1 < SCREEN_HEIGHT && y2 < SCREEN_HEIGHT);
 
     for (int y = y1; y <= y2; y++) {
@@ -141,6 +144,42 @@ int screen_fill_rect(Screen* screen, unsigned int x1, unsigned int y1, unsigned 
     return 0;
 }
 
+int screen_line(Screen* screen, unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2, Uint8 color) {
+    assert(color < 16 && x1 < SCREEN_WIDTH && x2 < SCREEN_WIDTH && y1 < SCREEN_HEIGHT && y2 < SCREEN_HEIGHT);
+    
+    // Bresenham's line algorithm because I'm too lazy to reinvent the wheel
+    int dx = abs(x2 - x1);
+    int dy = -abs(y2 - y1);
+    
+    int sx = x1 < x2 ? 1 : -1;
+    int sy = y1 < y2 ? 1 : -1;
+
+    int err = dx + dy;
+
+    // printf("x1, y1, x2, y2: %u, %u, %u, %u\n", x1, y1, x2, y2);
+
+    while (1) {
+        // printf("x1, y1: %u, %u\n", x1, y1);
+        if (x1 > x2 || y1 > y2) {
+            screen_pset(screen, x2, y2, color);
+            break;
+        }
+        screen_pset(screen, x1, y1, color);
+        if (x1 == x2 && y1 == y2) { break; }
+
+        if (2 * err >= dy) {
+            err += dy;
+            x1 += sx;
+        }
+
+        if (2 * err <= dx) {
+            err += dx;
+            y1 += sy;
+        }
+    }
+
+    return 1;
+}
 
 void screen_blit(Screen* screen) {
     Uint8 byte;
@@ -180,13 +219,93 @@ int testme(lua_State *L) {
     return 1;
 }
 
+int lib_screen_pset(lua_State *L) {
+    int x = luaL_checkinteger(L, 1);
+    int y = luaL_checkinteger(L, 2);
+    int c = luaL_checkinteger(L, 3);
+
+    if (x < 0 || x >= SCREEN_WIDTH || y < 0 || y >= SCREEN_HEIGHT) {
+        return luaL_error(L, "Screen error: pset coordinate (x,y) out of bound");
+    } else if (c < 0 || c >= 16) {
+        return luaL_error(L, "Screen error: pset color index c out of bound");
+    }
+
+    screen_pset(screen, x, y, c);
+    return 1;
+}
+
+int lib_screen_rectfill(lua_State *L) {
+    int x1 = luaL_checkinteger(L, 1);
+    int y1 = luaL_checkinteger(L, 2);
+    int x2 = luaL_checkinteger(L, 3);
+    int y2 = luaL_checkinteger(L, 4);
+    int c = luaL_checkinteger(L, 5);
+
+    if (x1 < 0 || x1 >= SCREEN_WIDTH || y1 < 0 || y1 >= SCREEN_HEIGHT) {
+        return luaL_error(L, "Screen error: rectfill coordinate (x1,y1) out of bound");
+    } else if (x2 < 0 || x2 >= SCREEN_WIDTH || y2 < 0 || y2 >= SCREEN_HEIGHT) {
+        return luaL_error(L, "Screen error: rectfill coordinate (x2,y2) out of bound");
+    } else if (c < 0 || c >= 16) {
+        return luaL_error(L, "Screen error: rectfill color index c out of bound");
+    }
+
+    screen_rectfill(screen, x1, y1, x2, y2, c);
+    return 1;
+}
+
+int lib_screen_line(lua_State *L) {
+    int x1 = luaL_checkinteger(L, 1);
+    int y1 = luaL_checkinteger(L, 2);
+    int x2 = luaL_checkinteger(L, 3);
+    int y2 = luaL_checkinteger(L, 4);
+    int c = luaL_checkinteger(L, 5);
+
+    if (x1 < 0 || x1 >= SCREEN_WIDTH || y1 < 0 || y1 >= SCREEN_HEIGHT) {
+        return luaL_error(L, "Screen error: line coordinate (x1,y1) out of bound");
+    } else if (x2 < 0 || x2 >= SCREEN_WIDTH || y2 < 0 || y2 >= SCREEN_HEIGHT) {
+        return luaL_error(L, "Screen error: line coordinate (x2,y2) out of bound");
+    } else if (c < 0 || c >= 16) {
+        return luaL_error(L, "Screen error: line color index c out of bound");
+    }
+
+    screen_line(screen, x1, y1, x2, y2, c);
+    return 1;
+}
+
+int lib_screen_cset(lua_State *L) {
+    int c = luaL_checkinteger(L, 1);
+    int r = luaL_checkinteger(L, 2);
+    int g = luaL_checkinteger(L, 3);
+    int b = luaL_checkinteger(L, 4);
+
+    if (r < 0 || r >= 256 || g < 0 || g >= 256 || b < 0 || b >= 256) {
+        return luaL_error(L, "Screen error: cset color (r, g, b) out of bound");
+    }
+
+    if (c < 0 || c >= 16) {
+        return luaL_error(L, "Screen error: cset color index c out of bound");
+    }
+
+    screen->colors[c].r = r;
+    screen->colors[c].g = g;
+    screen->colors[c].b = b;
+
+    // printf("%u, %u, %u\n", screen->colors[c].r , screen->colors[c].g , screen->colors[c].b );
+
+    return 1;
+}
+
 const luaL_Reg ScreenLib[] = {
-    { "testme", testme },
-    { NULL, NULL }
+    {"testme", testme},
+    {"pset", lib_screen_pset},
+    {"rectfill", lib_screen_rectfill},
+    {"line", lib_screen_line},
+    {"cset", lib_screen_cset},
+    {NULL, NULL}
 };
 
 int main(int argc, char** argv) {
-    printf("This is ThunderVM\n");
+    printf("This is VES Emulator\n");
 
     if (argc != 2) {
         printf("Usage: %s <filename>\n", argv[0]);
@@ -195,7 +314,7 @@ int main(int argc, char** argv) {
 
     char* filename = argv[1];
 
-    Screen* screen = screen_init();
+    screen = screen_init();
 	
     lua_State* L = luaL_newstate();
 
@@ -217,15 +336,6 @@ int main(int argc, char** argv) {
     } else {
         printf("! Lua error: %s\n", lua_tostring(L, lua_gettop(L)));
     }
-
-    screen->pixels[2] = 0x10;
-    screen_fill_scanline(screen, 0, 0, 12, 37, 2);
-    screen_fill_rect(screen, 57, 57, 110, 110, 3);
-    screen_pset(screen, 5, 8, 1);
-    screen_pset(screen, 4, 9, 1);
-    screen_pset(screen, 5, 9, 1);
-    screen_pset(screen, 6, 9, 1);
-    screen_pset(screen, 5, 10, 1);
 
     // main application loop
     SDL_Event event;
@@ -249,9 +359,13 @@ int main(int argc, char** argv) {
             lua_pushinteger(L, delta_draw);
             if (lua_pcall(L, 1, 0, 0) == LUA_OK) {
                 lua_pop(L, lua_gettop(L));
+            } else {
+                printf("! Lua error: %s\n", lua_tostring(L, lua_gettop(L)));
+                break;
             }
         }
 
+        // TODO: remove clear later since entire screen is redrawn anyways
         SDL_SetRenderDrawColor(screen->renderer, 0x00, 0x00, 0x00, 0x00);
         SDL_RenderClear(screen->renderer);
         screen_blit(screen);
