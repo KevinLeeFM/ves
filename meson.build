@@ -1,12 +1,14 @@
 project(
-    'thundervm', 'c',
+    'ves', 'c',
     default_options: 'default_library=static'
 )
 
 sdl2_dep = dependency('sdl2')
 lua_dep = dependency('lua-5.4')
 
+src = ['nblscreen.c', 'vesemu.c']
+
 executable(
-    'vesemu', 'vesemu.c',
+    'vesemu', src,
     dependencies: [sdl2_dep, lua_dep]
 )

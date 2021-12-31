@@ -1,7 +1,7 @@
 -- Start
 -- Script: script.lua
 
-
+-- Screen = iohint("NibbleScreen", 128, 128)
 
 -- pico 8 palette
 Screen.cset( 0, 0x00, 0x00, 0x00)
